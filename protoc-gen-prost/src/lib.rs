@@ -18,6 +18,8 @@ use prost_types::{
 use self::generator::{CoreProstGenerator, FileDescriptorSetGenerator};
 
 mod generator;
+#[cfg(target_os = "wasi")]
+mod wasi;
 
 pub use self::generator::{Error, Generator, GeneratorResultExt, Result};
 
@@ -135,10 +137,19 @@ impl ModuleRequestSet {
                 });
 
                 if entry.output_filename().is_none() && input_protos.contains(proto_filename) {
-                    let filename = match proto.package() {
-                        "" => default_package_filename.to_owned(),
-                        package => format!("{package}.rs"),
-                    };
+                    // Use proto file basename (e.g., "other.proto" -> "other.pb.rs")
+                    // This matches the convention used by other protoc plugins.
+                    let filename = std::path::Path::new(proto_filename)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|basename| format!("{basename}.pb.rs"))
+                        .unwrap_or_else(|| {
+                            // Fallback to package name if basename extraction fails
+                            match proto.package() {
+                                "" => default_package_filename.to_owned(),
+                                package => format!("{package}.pb.rs"),
+                            }
+                        });
                     entry.with_output_filename(filename);
                 }
 
