@@ -22,3 +22,12 @@ tonic-build = "0.14.1"
 codegen-units = 1
 lto = "fat"
 debug = true
+
+# Optimized profile for WASI builds - prioritizes small binary size
+[profile.release-wasi]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

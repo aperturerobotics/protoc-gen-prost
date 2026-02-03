@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  wasi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust WASI target
+        run: rustup target add wasm32-wasip1
+
+      - name: Install binaryen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binaryen
+
+      - name: Install wabt
+        run: |
+          sudo apt-get install -y wabt
+
+      - name: Build WASI reactor
+        run: |
+          cargo build --target wasm32-wasip1 --profile release-wasi -p protoc-gen-prost
+
+      - name: Optimize and strip WASM
+        run: |
+          mkdir -p dist
+          cp target/wasm32-wasip1/release-wasi/protoc_gen_prost.wasm dist/protoc-gen-prost.wasm
+          wasm-opt -Oz --enable-bulk-memory --enable-sign-ext dist/protoc-gen-prost.wasm -o dist/protoc-gen-prost.wasm
+          wasm-strip dist/protoc-gen-prost.wasm
+          ls -lh dist/protoc-gen-prost.wasm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: protoc-gen-prost-wasm
+          path: dist/protoc-gen-prost.wasm
+
+  upload-to-release:
+    needs: [wasi]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - run: ls -lh dist/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*

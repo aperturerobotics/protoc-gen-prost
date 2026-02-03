@@ -18,6 +18,8 @@ use prost_types::{
 use self::generator::{CoreProstGenerator, FileDescriptorSetGenerator};
 
 mod generator;
+#[cfg(target_os = "wasi")]
+mod wasi;
 
 pub use self::generator::{Error, Generator, GeneratorResultExt, Result};
 
