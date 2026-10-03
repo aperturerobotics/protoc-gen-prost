@@ -24,6 +24,7 @@ pub fn execute(raw_request: &[u8]) -> protoc_gen_prost::Result {
         raw_request,
         params.default_package_filename.as_deref(),
         params.flat_output_dir,
+        false,
     )?;
 
     let resolver = Resolver::new(params.extern_path, params.compile_well_known_types);

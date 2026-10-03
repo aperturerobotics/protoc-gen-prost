@@ -22,6 +22,7 @@ pub fn execute(raw_request: &[u8]) -> Result {
         raw_request,
         params.default_package_filename.as_deref(),
         params.flat_output_dir,
+        false,
     )?;
 
     let include_filename = if params.gen_crate.is_some() {

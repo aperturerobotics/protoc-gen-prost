@@ -34,6 +34,7 @@ pub fn execute(raw_request: &[u8]) -> generator::Result {
         raw_request,
         params.prost.default_package_filename(),
         params.prost.flat_output_dir,
+        params.prost.file_modules,
     )?;
 
     let file_descriptor_set_generator = if params.file_descriptor_set {
@@ -100,6 +101,7 @@ impl ModuleRequestSet {
         raw_request: &[u8],
         default_package_filename: Option<&str>,
         flat_output_dir: bool,
+        file_modules: bool,
     ) -> std::result::Result<Self, prost::DecodeError>
     where
         I: IntoIterator<Item = String>,
@@ -112,6 +114,7 @@ impl ModuleRequestSet {
             raw_protos,
             default_package_filename.unwrap_or("_"),
             flat_output_dir,
+            file_modules,
         ))
     }
 
@@ -121,6 +124,7 @@ impl ModuleRequestSet {
         raw_protos: RawProtos,
         default_package_filename: &str,
         flat_output_dir: bool,
+        file_modules: bool,
     ) -> Self
     where
         I: IntoIterator<Item = String>,
@@ -130,10 +134,22 @@ impl ModuleRequestSet {
         let requests = proto_file.into_iter().zip(raw_protos.proto_file).fold(
             BTreeMap::new(),
             |mut acc, (proto, raw)| {
-                let module = Module::from_protobuf_package_name(proto.package());
                 let proto_filename = proto.name();
+                // With file_modules every schema is its own module, so packages
+                // that span several directories keep one output per schema.
+                // Type paths still resolve through the protobuf package.
+                let module = if file_modules {
+                    Module::from_parts([proto_filename])
+                } else {
+                    Module::from_protobuf_package_name(proto.package())
+                };
                 let entry = acc.entry(module.clone()).or_insert_with(|| {
-                    ModuleRequest::new(proto.package().to_owned(), module, flat_output_dir)
+                    let mut request =
+                        ModuleRequest::new(proto.package().to_owned(), module, flat_output_dir);
+                    if file_modules {
+                        request.with_output_dir(proto_filename);
+                    }
+                    request
                 });
 
                 if entry.output_filename().is_none() && input_protos.contains(proto_filename) {
@@ -181,6 +197,7 @@ pub struct ModuleRequest {
     proto_package_name: String,
     module: Module,
     flat_output_dir: bool,
+    output_dir_override: Option<String>,
     output_filename: Option<String>,
     files: Vec<FileDescriptorProto>,
     raw: Vec<Vec<u8>>,
@@ -192,10 +209,24 @@ impl ModuleRequest {
             proto_package_name,
             module,
             flat_output_dir,
+            output_dir_override: None,
             output_filename: None,
             files: Vec::new(),
             raw: Vec::new(),
         }
+    }
+
+    /// Writes the output beside the schema at `proto_filename`.
+    fn with_output_dir(&mut self, proto_filename: &str) {
+        let dir = std::path::Path::new(proto_filename)
+            .parent()
+            .and_then(|p| p.to_str())
+            .unwrap_or_default();
+        self.output_dir_override = Some(if dir.is_empty() {
+            String::new()
+        } else {
+            format!("{dir}/")
+        });
     }
 
     fn with_output_filename(&mut self, filename: String) {
@@ -218,6 +249,9 @@ impl ModuleRequest {
     }
 
     pub fn output_dir(&self) -> String {
+        if let Some(dir) = &self.output_dir_override {
+            return dir.clone();
+        }
         if self.flat_output_dir {
             return String::new();
         }
@@ -312,6 +346,7 @@ struct ProstParameters {
     retain_enum_prefix: bool,
     enable_type_names: bool,
     flat_output_dir: bool,
+    file_modules: bool,
 }
 
 impl ProstParameters {
@@ -471,6 +506,17 @@ impl ProstParameters {
             } => self.flat_output_dir = true,
             Param::Value {
                 param: "flat_output_dir",
+                value: "false",
+            } => (),
+            Param::Parameter {
+                param: "file_modules",
+            }
+            | Param::Value {
+                param: "file_modules",
+                value: "true",
+            } => self.file_modules = true,
+            Param::Value {
+                param: "file_modules",
                 value: "false",
             } => (),
             _ => return Err(param),
@@ -656,6 +702,9 @@ struct RawProtos {
     #[prost(bytes = "vec", repeated, tag = "15")]
     proto_file: Vec<Vec<u8>>,
 }
+
+#[cfg(test)]
+mod file_modules_tests;
 
 #[cfg(test)]
 mod tests {

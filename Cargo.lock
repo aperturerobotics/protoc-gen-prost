@@ -211,9 +211,11 @@ dependencies = [
  "multimap",
  "once_cell",
  "petgraph",
+ "prettyplease",
  "prost",
  "prost-types",
  "regex",
+ "syn",
  "tempfile",
 ]
 

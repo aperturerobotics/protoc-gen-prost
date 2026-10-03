@@ -21,7 +21,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 once_cell.workspace = true
-prost-build.workspace = true
+prost-build = { workspace = true, features = ["format"] }
 prost-types.workspace = true
 prost.workspace = true
 regex.workspace = true
