@@ -4,6 +4,14 @@ This changelog is based on the format from [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added
+
+- (prost) Added the `file_modules` parameter to write one output file per schema when a package spans several directories
+
+### Changed
+
+- (prost) The WASI build formats generated code with prettyplease, as `prost-build` does by default
+
 ## [2025-11-19]
 
 - `protoc-gen-prost` 0.5.0

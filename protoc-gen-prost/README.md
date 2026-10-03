@@ -57,6 +57,12 @@ In addition, the following options can also be specified:
   structure will be flattened, with all generated files placed directly
   into the specified output directory. By default, the output directory
   structure mirrors the input protobuf file paths.
+* `file_modules(=<boolean>)`: When specified, each input schema is generated
+  as its own module and written as `<dir>/<name>.pb.rs` beside the schema,
+  even when several schemas in different directories share one protobuf
+  package. Type paths still resolve through the protobuf package, so a
+  consumer includes each file in the module of its package. By default all
+  schemas of a package are merged into one file.
 * `prost_reflect`: When specified together with `file_descriptor_set`, generate
   implementations of [prost_reflect::ReflectMessage](https://docs.rs/prost-reflect/latest/prost_reflect/trait.ReflectMessage.html) trait for the generated rust struct. Note that this option
   depends on `file_descriptor_set`, and when enabled, the generated `FileDescriptorSet`
